@@ -30,11 +30,11 @@ OUT_DIR = "/PATH/TO/OUTPUT/DIRECTORY"
 
 # ── Positive site buffer radii (metres)
 # Training samples are drawn from each of these buffer rings around known sites.
-# Multiple scales capture both mine cores and disturbed margins.
+# Multiple scales capture both site cores and disturbed margins.
 BUFFER_RADII_M = [50, 100, 200, 400]
 
 # ── Detection threshold
-# Confidence score [0–1] above which a pixel is classified as a mine.
+# Confidence score [0–1] above which a pixel is classified as a site.
 # Lower  → more detections, more false positives  (cast wide net)
 # Higher → fewer detections, higher confidence only
 CONFIDENCE_THRESHOLD = 0.45
@@ -43,7 +43,7 @@ CONFIDENCE_THRESHOLD = 0.45
 USE_RAW_INDICES    = True   # Raw NDVI, NDWI, MNDVI, MNDWI, SAVI, SABI values
 USE_TERRAIN        = True   # DEM-derived: elevation, slope, TPI, TWI
 USE_INDEX_RATIOS   = True   # SABI/NDVI, SAVI/NDVI, MNDVI/NDVI, MNDWI/NDWI etc.
-USE_TEXTURE        = True   # Local variance in sliding window (mine surfaces are rough)
+USE_TEXTURE        = True   # Local variance in sliding window (site surfaces can be rough)
 USE_CONTEXT_ZSCORE = True   # Per-pixel z-score vs local neighborhood (anomaly detection)
 
 TEXTURE_WINDOW_PX  = 5      # Sliding window size for texture (pixels; must be odd)
@@ -275,7 +275,7 @@ def build_feature_array(
         for name in INDEX_NAMES:
             features.append(arrays[name].ravel())
 
-    # b) Index ratios — mine signatures vs background forest
+    # b) Index ratios — site signatures vs background forest
     if USE_INDEX_RATIOS:
         ndvi  = arrays["NDVI"]
         ndwi  = arrays["NDWI"]
@@ -509,7 +509,7 @@ def train_ensemble(
 
     print("\n  ── Ensemble Evaluation (test set) ──", flush=True)
     print(classification_report(y_test, ens_pred,
-                                 target_names=["background", "mine"]), flush=True)
+                                 target_names=["background", "site"]), flush=True)
     print(f"  ROC-AUC            : {roc_auc_score(y_test, ens_prob):.4f}", flush=True)
     print(f"  Avg Precision (AP) : {average_precision_score(y_test, ens_prob):.4f}",
           flush=True)
@@ -544,7 +544,7 @@ def predict_mosaic(
 ) -> None:
     """
     Predict confidence scores across the full mosaic in row-chunks.
-    Writes a Float32 GeoTIFF of mine confidence [0, 1].
+    Writes a Float32 GeoTIFF of site confidence [0, 1].
     """
     ref_ds   = next(iter(datasets.values()))
     height   = ref_ds.height
@@ -678,7 +678,7 @@ def raster_to_vectors(
 # Main pipeline
 
 def run() -> None:
-    print("\n=== Gold Mine Detection Pipeline ===\n", flush=True)
+    print("\n=== Spatial Event Detection Pipeline ===\n", flush=True)
     print(f"  Confidence threshold : {CONFIDENCE_THRESHOLD}", flush=True)
     print(f"  Buffer radii (m)     : {BUFFER_RADII_M}", flush=True)
     print(f"  Features enabled     : raw={USE_RAW_INDICES}  ratios={USE_INDEX_RATIOS}  "
@@ -701,7 +701,7 @@ def run() -> None:
     # ── Extract training samples
     print("\nStep 2 — Extracting training samples...", flush=True)
 
-    print("  Positive sites (known mines):", flush=True)
+    print("  Positive sites (known sites):", flush=True)
     X_pos, y_pos = extract_samples_from_geojson(
         POSITIVE_GEOJSON, datasets, label=1,
         buffer_radii_m=BUFFER_RADII_M,
